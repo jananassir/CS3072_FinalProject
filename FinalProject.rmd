@@ -170,12 +170,74 @@ crime_map <- full_join (statesmap, av_crime, by = c("state_abbr"))
 ```
 
 ```{r}
-ggplot(data = crime_map, aes(geometry = geometry))+
-  geom_sf(aes(fill="state_abbr")) +
-  scale_fill_manual(values = c("#DE0100", "#0015BC")) +
-  labs(
-    title = "crime rates from 1984 to 2019"
-  ) +
-  theme_bw()
+crime_map2 <- filter(crime_map, state != "Hawaii", state != "Alaska")
+```
 
+
+```{r, fig.hieght = 15, fig.width = 10}
+ggplot(data = crime_map2) + 
+geom_sf(aes(fill=crime_rate)) +
+  scale_fill_gradient(low ="#ffffcc", high = "#ff6600") + 
+  geom_sf_text(aes(label = state_abbr), size = 2) +
+  labs(title = "Crime Rate per State", fill = "Crime rate") +
+  theme_bw()
+```
+
+```{r}
+vp <- summarize(crime_usa, year = year, Property = property_crime/1000000, Violent = violent_crime/1000000)
+vp_long <- vp %>%                   
+  pivot_longer(!c("year")) %>% 
+  as.data.frame()
+vp_long <- rename (vp_long, Type = name)
+
+```
+
+```{r, fig.width = 7}
+ggplot(vp_long, aes(year, value)) +
+  geom_point(aes(color = Type), size = 1, alpha = 0.6) +
+  scale_color_manual(values = c("#00AFBB", "#E7B800")) +
+  scale_fill_manual(values = c("#00AFBB", "#E7B800"))+
+  facet_wrap(~Type)+
+  stat_smooth( aes(color = Type, fill = Type), method = "lm")+  
+  theme(legend.position = "bottom", panel.border = element_rect(color = "black", fill = NA, size = 1)) +
+  labs (title = "Number of Property Crimes and Violent Crimes Over Time", x = "Year", y = "Number of crimes in millions")
+```
+
+```{r}
+crime_usa <- rename(crime_usa, attainment = "attainment rate")
+
+income_plot <- select(crime_usa, year, income, total_crime, violent_crime, property_crime, burglary, attainment)
+income_plot <- filter(income_plot, !is.na(income))
+col_conv <- c("income")
+income_plot <- income_plot                                           
+income_plot[ col_conv] <- lapply(income_plot[ col_conv],  
+                                       function(x){ as.numeric(as.character(gsub(",", "", x))) })
+income_plot <- summarize(income_plot, year, income = income/1000,  tcrime = total_crime/1000000, vcrime = violent_crime/1000000, pcrime =  property_crime/1000000, burglary = burglary/1000000, attainment)
+```
+
+
+```{r}
+ggplot(income_plot, mapping = aes(x= income, y = tcrime)) +geom_point() + geom_smooth() +labs(title = "Number of Crimes and Average Income", x = "Income(x1000)", y = "Number of crimes in the USA (x1000000)")
+```
+
+```{r}
+crime_usa <- mutate(crime_usa, Property = property_crime/population, Violent = violent_crime/population, Burglary = burglary/population, Total = total_crime/population,)
+```
+
+```{r}
+edu_plot <- select(crime_usa, year, Total, Property, Violent, Burglary, attainment)
+edu_plot <- filter(edu_plot, !is.na(attainment))
+edu_long <- edu_plot %>%                   
+  pivot_longer(!c("year", "attainment")) %>% 
+  as.data.frame()
+```
+
+
+```{r, fig.width = 7}
+ggplot(edu_long, aes(attainment, value)) +
+  geom_line(aes(color = name), size = 1) +
+  scale_color_manual(values = c("#00AFBB", "#E7B800", "#CD5C5C", "#3CB371")) +
+  facet_wrap(~name)+
+  theme(legend.position = "none", panel.border = element_rect(color = "black", fill = NA, size = 1)) +
+  labs (title = "Impact of Educational Attainment on Crime Rates", x = "Percentage of Adults with Higher Education (25-64)", y = "Rate of crime per population")
 ```
